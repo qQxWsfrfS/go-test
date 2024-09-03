@@ -18,7 +18,7 @@ func (p *Page) Save() error {
 }
 
 func LoadPage(title string) (*Page, error) {
-	body, err := os.ReadFile(title)
+	body, err := os.ReadFile(title + ".txt")
 	if err != nil {
 		return nil, err
 	}

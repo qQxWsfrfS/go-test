@@ -1,14 +1,15 @@
 package main
 
 import (
-	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"webapp/filereader"
 )
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println(r.URL.Path)
+func renderTemplate(w http.ResponseWriter, tmpl string, p *filereader.Page) {
+	t, _ := template.ParseFiles("templates/" + tmpl + ".html")
+	t.Execute(w, p)
 }
 
 func editHandler(w http.ResponseWriter, r *http.Request) {
@@ -17,21 +18,34 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		p = &filereader.Page{Title: title}
 	}
-	fmt.Fprintf(w, "<h1>Editing %s</h1>"+
-		"<form action=\"/save/%s\" method=\"POST\">"+
-		"<textarea name=\"body\">%s</textarea><br>"+
-		"<input type=\"submit\" value=\"Save\"/>"+
-		"</form>", p.Title, p.Title, p.Body)
+
+	renderTemplate(w, "edit", p)
+
+}
+
+func saveHandler(w http.ResponseWriter, r *http.Request) {
+	title := r.URL.Path[len("/save/"):]
+	body := r.FormValue("body")
+	p := filereader.Page{Title: title, Body: []byte(body)}
+	p.Save()
+	http.Redirect(w, r, "/view/"+title, http.StatusFound)
 }
 
 func viewHandler(w http.ResponseWriter, r *http.Request) {
-	p, _ := filereader.LoadPage("TestPage.txt")
-	fmt.Fprintf(w, "<head><title>%s</title></head><h1>%s</h1>", p.Title, p.Body)
+	title := r.URL.Path[len("/view/"):]
+	p, err := filereader.LoadPage(title)
+	if err != nil {
+		http.Redirect(w, r, "/edit/"+title, http.StatusFound)
+		return
+	}
+
+	renderTemplate(w, "view", p)
 }
 
 func main() {
-	http.HandleFunc("/", viewHandler)
+	http.HandleFunc("/view/", viewHandler)
 	http.HandleFunc("/edit/", editHandler)
+	http.HandleFunc("/save/", saveHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 
 }
